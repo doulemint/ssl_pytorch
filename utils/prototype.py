@@ -120,8 +120,8 @@ if __name__ == '__main__':
     import argparse
     # Parser
     parser = argparse.ArgumentParser(description='ssl_base_model')
-    parser.add_argument('--config_env',
+    parser.add_argument('--config',
                         help='Config file for the environment')
     args = parser.parse_args()
-    p=create_config(args.config_exp)
+    config=create_config(args.config)
     predefined_prototype(config)

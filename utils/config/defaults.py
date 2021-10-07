@@ -10,16 +10,20 @@ config.cudnn.deterministic = False
 
 config.dataset = ConfigNode()
 config.dataset.name = 'CIFAR10'
+config.dataset.image_size=224
 config.dataset.n_classes = 10
 config.dataset.dataset_dir = ''
 
 config.model = ConfigNode()
 config.model.name = 'resnet_preact'
+config.model.type="imagenet"
 config.model.backbone = 'resnet_preact'
+config.model.init_mode = 'pretrain'
 config.model.features_dim=128
 
 config.model.resnet = ConfigNode()
 config.model.resnet.depth = 110 
+config.model.resnet_preact = ConfigNode()
 config.model.resnet_preact.n_blocks = [2, 2, 2, 2]  # for imagenet type model
 config.model.resnet_preact.block_type = 'basic'
 
@@ -30,6 +34,8 @@ config.model.resnext = ConfigNode()
 config.model.resnext.depth = 29  # for cifar type model
 config.model.resnext.n_blocks = [3, 4, 6, 3]  # for imagenet type model
 config.model.resnext.initial_channels = 64
+config.model.resnext.cardinality = 8
+config.model.resnext.base_channels = 4
 
 config.train = ConfigNode()
 config.train.checkpoint = ''
@@ -59,6 +65,9 @@ config.train.use_test_as_val = True
 config.train.output_dir = 'experiments/exp00'
 config.train.log_period = 100
 config.train.checkpoint_period = 10
+
+#distribute
+config.train.distributed = False
 
 config.train.use_tensorboard = True
 config.tensorboard = ConfigNode()
