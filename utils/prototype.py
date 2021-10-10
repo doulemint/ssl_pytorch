@@ -17,7 +17,11 @@ def get_indices_sparse(data):
     """
     Is faster than np.argwhere. Used in loss functions like swav loss, etc
     """
+    
     cols = np.arange(data.size)
+    #check you data 
+    # print("data.size: ",data.size," data.max():",data.max())
+    # print("index: ",sum(data.ravel()<0))
     M = csr_matrix((cols, (data.ravel(), cols)), shape=(data.max() + 1, data.size))
     return [np.unravel_index(row.data, data.shape) for row in M]
 
@@ -94,7 +98,7 @@ def predefined_prototype(config,model,labalbed_dataloader):
     else:
         emb_sums = torch.zeros(config.dataset.n_classes, config.model.features_dim)
         targets=targets.numpy()
-    where_helper = get_indices_sparse(targets.numpy())
+    where_helper = get_indices_sparse(targets)
     for k in range(len(where_helper)):
         # print("where_helper[k]: ",where_helper[k])
         if len(where_helper[k][0]) > 0:

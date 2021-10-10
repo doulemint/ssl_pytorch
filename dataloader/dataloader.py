@@ -1,5 +1,6 @@
 
 from .dataset import create_datasets,pesudoMyDataset,MyDataset,create_pair_dataset
+from typing import Tuple, Union
 import yacs,torch
 import pandas as pd
 from utils.prototype import get_indices_sparse
@@ -54,7 +55,7 @@ def create_mixup_dataloader(config: yacs.config.CfgNode,isweak:bool,unlabeled_df
     )
     return mixup_loader
 
-def create_fewshot_dataloader(config: yacs.config.CfgNode,isweak:bool)->DataLoader:
+def create_fewshot_dataloader(config: yacs.config.CfgNode,isweak:bool)->Union[Tuple[DataLoader, DataLoader], DataLoader]:
     train_Dataset, unlabeled_Dataset = create_pair_dataset(config,isweak)
     train_loader = torch.utils.data.DataLoader(
         train_Dataset,

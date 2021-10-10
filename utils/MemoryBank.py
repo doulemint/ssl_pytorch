@@ -10,8 +10,8 @@ class MemoryBank(object):
     def __init__(self, n, dim, num_classes, temperature):
         self.n = n
         self.dim = dim 
-        self.features = torch.FloatTensor(self.n, self.dim)
-        self.targets = torch.LongTensor(self.n)
+        self.features = torch.zeros([self.n, self.dim],dtype=torch.float64)
+        self.targets = torch.zeros(self.n,dtype=torch.int64)
         self.filenames = []
         self.ptr = 0
         self.device = 'cpu'

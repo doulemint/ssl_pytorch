@@ -8,7 +8,7 @@ model:
   type: imagenet
   name: resnext
   init_mode: pretrain
-  features_dim: 1000
+  features_dim: 128
   resnext:
     initial_channels: 64
     n_blocks: [3, 4, 6, 3]
@@ -32,16 +32,16 @@ train:
   dataloader:
     num_workers: 8
     drop_last: True
-    pin_memory: True
+    pin_memory: False
 validation:
   batch_size: 32
   dataloader:
     num_workers: 8
     drop_last: False
-    pin_memory: True
+    pin_memory: False
 scheduler:
   epochs: 90
-  type: cyclicLR
+  type: CosineAnnealing
   milestones: [30, 60]
   lr_decay: 0.1
 tensorboard:

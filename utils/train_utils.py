@@ -1,12 +1,8 @@
-
-
-
-
-
-
 import torch
 from dataloader.dataloader import *
+
 from .prototype import *
+from utils.metrics import compute_accuracy
 
 
 def train(config,model,train_loader,optimizer,criterion,scheduler,logger,epoch):
@@ -36,9 +32,9 @@ def train(config,model,train_loader,optimizer,criterion,scheduler,logger,epoch):
 
         running_accuracy +=(pred==targets).sum().item()
         if step%200==0:
-            logger.info(f"Accy-top1: {running_accuracy}")
+            logger.info(f"{step}/{len(train_loader)} Accy-top1: {running_accuracy/((step+1)*config.train.batch_size)}")
 
-    logger.info(f"Accy-top1: {running_accuracy}")
+    logger.info(f"{step}/{len(train_loader)} Accy-top1: {running_accuracy/(len(train_loader)*config.train.batch_size)}")
 
     scheduler.step()
     return loss
@@ -68,7 +64,7 @@ def unlabeled_train(config,p_model,criterion,unlabeled_dataloader,model,num_neig
             p_s[0] = cos(feature_vector,emb_sums)
         memory_bank_unlabeled.update(p_s,torch.tensor([0]*feature_vector.size(0)),filenames)
         #distribution alignment
-        targets_u = logits_y.detach().cpu()* p_model
+        targets_u = logits_y.detach().cpu()* p_model()
         #sharpening
         targets_u = targets_u**(1/0.5)
         targets_u = targets_u / targets_u.sum(dim=1, keepdim=True)
@@ -117,7 +113,7 @@ def contrastive_train(config,model,train_loader,optimizer,criterion,scheduler,ep
     scheduler.step()
     return loss
 def mine_nn(memory_bank_unlabeled,num_neighbors):
-    _, pred = memory_bank_unlabeled.features.topk(num_neighbors, 0, False, True)
+    _, pred = memory_bank_unlabeled.features[:memory_bank_unlabeled.ptr].topk(num_neighbors, 0, False, True)
     pred = pred.t()
     topk_files=[]
     topk_labels=[]

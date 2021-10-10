@@ -76,7 +76,7 @@ def main():
     #supervised train
     #todo
     for epoch, seed in enumerate(range(config.scheduler.epochs)):
-        sup_loss=train(config,model,labalbed_dataloader,optimizer_q,supervised_loss,scheduler_q,logger,epoch)
+        sup_loss=train(config,model_q,labalbed_dataloader,optimizer_q,supervised_loss,scheduler_q,logger,epoch)
         if epoch%5==0:
         #if epoch=0 we use few shot labeled dataset to get predifined protetype
             if epoch==0:

@@ -16,6 +16,7 @@ import torchvision
 from torch.utils.data import Dataset
 
 from transforms import create_transform
+from utils.prototype import get_indices_sparse
 
 
 def get_files(root,mode,label_map_dir):
@@ -102,7 +103,7 @@ class MyDataset(Dataset):
         if self.output_label == True:
             return img, target
         else:
-            return img
+            return img,self.df.loc[index]['filename']
 
 class pesudoMyDataset(MyDataset):
     #do mixup and label guess 
