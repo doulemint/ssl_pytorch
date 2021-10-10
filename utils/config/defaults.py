@@ -105,6 +105,7 @@ config.scheduler.milestones = [80, 120]
 config.scheduler.lr_decay = 0.1
 config.scheduler.lr_min_factor = 0.001
 config.scheduler.T0 = 10
+config.scheduler.T_mul = 1 #sometime it needs to be integar/fraction
 
 # train data loader
 config.train.dataloader = ConfigNode()

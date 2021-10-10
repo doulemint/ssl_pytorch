@@ -54,8 +54,8 @@ def create_mixup_dataloader(config: yacs.config.CfgNode,isweak:bool,unlabeled_df
     )
     return mixup_loader
 
-def create_fewshot_dataloader(config: yacs.config.CfgNode,isweak:bool,unlabeled_df:pd.DataFrame)->DataLoader:
-    train_Dataset, unlabeled_Dataset = create_pair_dataset(config,isweak,True)
+def create_fewshot_dataloader(config: yacs.config.CfgNode,isweak:bool)->DataLoader:
+    train_Dataset, unlabeled_Dataset = create_pair_dataset(config,isweak)
     train_loader = torch.utils.data.DataLoader(
         train_Dataset,
         batch_size=config.train.batch_size,
@@ -72,12 +72,12 @@ def create_fewshot_dataloader(config: yacs.config.CfgNode,isweak:bool,unlabeled_
         shuffle=True,        
         num_workers=config.train.dataloader.num_workers,
     )
-    r
+    
     return train_loader,unlabeled_loader
 
 def create_dataloader(config: yacs.config.CfgNode,isweak:bool,islabeled:bool,use_test_as_val:bool):
     if not use_test_as_val:
-        return create_fewshot_dataloader()
+        return create_fewshot_dataloader(config,isweak)
     if islabeled:
         return create_labaled_dataloader(config,isweak)
     else:

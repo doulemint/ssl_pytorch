@@ -143,7 +143,7 @@ def create_pair_dataset(config,weakAugment:bool):
             transform = create_transform(config, is_train=False)
     else:
             transform = create_transform(config, is_train=True)
-
+    assert transform!=None
     dataset_dir = config.dataset.dataset_dir
     label_map_dir = config.train.output_dir+"/label_map.pkl"
     train_df=get_files(dataset_dir+"/train/","train",label_map_dir)
@@ -163,7 +163,7 @@ def create_datasets(config: yacs.config.CfgNode,weakAugment:bool,labeled:bool,df
             transform = create_transform(config, is_train=False)
     else:
             transform = create_transform(config, is_train=True)
-
+    assert transform!=None
     if df is not None:
         return MyDataset(df,transforms=transform,output_label=labeled)
 

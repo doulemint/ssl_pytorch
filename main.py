@@ -1,14 +1,15 @@
 
 from models import build_model
 from utils.common_utils import create_config
-from optimizer import create_optimizer, create_scheduler
+from optimizer import create_optimizer
+from scheduler import create_scheduler, discriminative_lr_params
 from dataloader import create_dataloader
 from utils.MemoryBank import *
 from utils.train_utils import *
 from utils.prototype import *
 from utils.logger import create_logger
 from utils import get_env_info
-from losses import create_loss, discriminative_lr_params
+from losses import create_loss
 
 
 import argparse
@@ -26,6 +27,8 @@ def main():
 
     #create config
     config=create_config(args.config_exp)
+    output_dir = pathlib.Path(config.train.output_dir)
+    output_dir.mkdir(exist_ok=True, parents=True)
     logger = create_logger(name=__name__,
                            distributed_rank=0,
                            output_dir=output_dir,
@@ -46,8 +49,8 @@ def main():
     # setupCuDNN()
 
     #label dataset
-    labalbed_dataloader,unlabeled_dataloader = create_dataloader(config,True,True)
-    val_dataloader = create_dataloader(config,True,False)
+    labalbed_dataloader,unlabeled_dataloader = create_dataloader(config,True,True,False)
+    val_dataloader = create_dataloader(config,True,False,True)
 
     #optimizer,scheduler,loss
     params=lr_arr=None
@@ -71,19 +74,19 @@ def main():
     p_model=PMovingAverage(config.dataset.n_classes,config.model.features_dim)
     #supervised train
     #todo
-    for epoch, seed in enumerate(range(config.scheduler.epoches)):
+    for epoch, seed in enumerate(range(config.scheduler.epochs)):
         sup_loss=train(config,model,labalbed_dataloader,optimizer_q,supervised_loss,scheduler_q,logger,epoch)
         if epoch%5==0:
         #if epoch=0 we use few shot labeled dataset to get predifined protetype
             if epoch==0:
-                emb_sums=predefined_prototype(config,model,labalbed_dataloader)
+                emb_sums=predefined_prototype(config,model_q,labalbed_dataloader)
             #if epoch%5==0 we use mixture labeled dataset to get predifined protetype
             else:
                 if memory_bank_unlabeled is not None:
                     mixup_loader = get_mixup(memory_bank_unlabeled,num_neighbors)
                     emb_sums=predefined_prototype(config,model,mixup_loader)
         #todo: if p_model doesn't return， will it update the variables synchornizely?
-        pl_loss,memory_bank_unlabeled,mask,p_model = unlabeled_train(config,p_model,Ssl_loss,unlabeled_dataloader,model,emb_sums)
+        pl_loss,memory_bank_unlabeled,mask,p_model = unlabeled_train(config,p_model,Ssl_loss,unlabeled_dataloader,model_q,emb_sums)
         # get_positive_sample()
         # ctr_loss = contrastive_train()
         # total_loss = sup_loss+pl_loss+ctr_loss

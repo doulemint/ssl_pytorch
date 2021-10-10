@@ -67,7 +67,7 @@ def concat_all_gather(tensor):
 
 class MultiheadModel(nn.Module):
     def __init__(self, backbone, n_classes, head='mlp', features_dim=128):
-        super(ContrastiveModel, self).__init__()
+        super(MultiheadModel, self).__init__()
         self.backbone = backbone['backbone']
         self.backbone_dim = backbone['dim']
         self.head = head
