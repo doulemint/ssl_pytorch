@@ -112,33 +112,9 @@ def contrastive_train(config,model,train_loader,optimizer,criterion,scheduler,ep
     
     scheduler.step()
     return loss
-def mine_nn(memory_bank_unlabeled,num_neighbors):
-    _, pred = memory_bank_unlabeled.features[:memory_bank_unlabeled.ptr].topk(num_neighbors, 0, False, True)
-    pred = pred.t()
-    topk_files=[]
-    topk_labels=[]
-    for labels,index in enumerate(pred):
-        topk_files.extend([memory_bank_unlabeled.filenames[i] for i in index])
-        topk_labels.extend([labels]*num_neighbors)
-    unlabeled_df = pd.DataFrame({"filename": topk_files, "label": topk_labels})
-    return unlabeled_df
 
-def get_positive_sample(memory_bank_unlabeled,num_neighbors,mask):
-    unlabeled_df = mine_nn(memory_bank_unlabeled,num_neighbors)
-    constrastive_dataloader = create_contrastive_dataloader(config,True,unlabeled_df)
-    return constrastive_dataloader
 
 #we didn't consider pr_loss result.. simply mined samples
-def get_mixup(memory_bank_unlabeled,num_neighbors):
-    #mine the nearest nearbor
-    #convert topk to df
-    # pred size(num_neighbors x n_classes)
-    unlabeled_df = mine_nn(memory_bank_unlabeled,num_neighbors)
-    
-    # prototype_mixture update new embeddings
-    Mixup_dataloader = create_mixup_dataloader(config,True,unlabeled_df)
-    # emb_sums = predefined_prototype(config,model,Mixup_dataloader)
-    return Mixup_dataloader 
 
 def val(config,model,train_loader,criterion,epoch):
     device=config.device
