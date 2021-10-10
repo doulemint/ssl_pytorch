@@ -11,9 +11,11 @@ class SslLoss(nn.Module):
     
     def forward(self,input,target):
         #find the max prob > thred
-        prob,target = torch.max(target)
+        print("target: ",target[0]*100)
+        target = F.softmax(target*100,dim=1)#(target)
+        print("target: ",target[0])
+        prob,target = torch.max(target,dim=1)
         losses=self.criterion(input,target)
-        #todo: find a func
         # mask = torch.where(prob,0,1)
         mask = prob > 0.7
         return losses, mask

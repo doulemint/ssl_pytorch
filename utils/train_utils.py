@@ -5,7 +5,7 @@
 
 
 import torch
-from dataloader import create_mixup_dataloader
+from dataloader.dataloader import *
 from .prototype import *
 
 
@@ -45,15 +45,17 @@ def train(config,model,train_loader,optimizer,criterion,scheduler,logger,epoch):
 
 #p_model: runing similairty distribution
 #emb_sums: predefined protetype 
-def unlabeled_train(config,p_model,criterion,unlabeled_dataloader,model,emb_sums,logger):
+def unlabeled_train(config,p_model,criterion,unlabeled_dataloader,model,num_neighbors,emb_sums,logger):
     num_neighbors = 20
-    memory_bank_unlabeled = MemoryBank(len(unlabeled_dataloader), 
+    device = config.device
+    memory_bank_unlabeled = MemoryBank(len(unlabeled_dataloader)*config.train.batch_size, 
                                 config.dataset.n_classes,
                                 config.dataset.n_classes, config.criterion_kwargs.temperature)
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
 
 
     for batch,filenames in unlabeled_dataloader:
+        batch = batch.to(device)
         feature_vector,logits_y=model(batch)
         p_s=torch.zeros(feature_vector.size(0), config.dataset.n_classes)
         #if batch_size>0 we have to calculate them one by one
@@ -66,11 +68,11 @@ def unlabeled_train(config,p_model,criterion,unlabeled_dataloader,model,emb_sums
             p_s[0] = cos(feature_vector,emb_sums)
         memory_bank_unlabeled.update(p_s,torch.tensor([0]*feature_vector.size(0)),filenames)
         #distribution alignment
-        targets_u = logits_y* p_model
+        targets_u = logits_y.detach().cpu()* p_model
         #sharpening
         targets_u = targets_u**(1/0.5)
         targets_u = targets_u / targets_u.sum(dim=1, keepdim=True)
-        pseudo_label = targets_u.detach()
+        pseudo_label = F.normalize(targets_u.detach(), dim = 1)
         #loss
         losses,mask = criterion(logits_y, pseudo_label)
         print("losses: ",losses)

@@ -72,6 +72,7 @@ def main():
 
     memory_bank_unlabeled=None
     p_model=PMovingAverage(config.dataset.n_classes,config.model.features_dim)
+    
     #supervised train
     #todo
     for epoch, seed in enumerate(range(config.scheduler.epochs)):
@@ -84,9 +85,9 @@ def main():
             else:
                 if memory_bank_unlabeled is not None:
                     mixup_loader = get_mixup(memory_bank_unlabeled,num_neighbors)
-                    emb_sums=predefined_prototype(config,model,mixup_loader)
-        #todo: if p_model doesn't return， will it update the variables synchornizely?
-        pl_loss,memory_bank_unlabeled,mask,p_model = unlabeled_train(config,p_model,Ssl_loss,unlabeled_dataloader,model_q,emb_sums)
+                    emb_sums=predefined_prototype(config,model_q,mixup_loader)
+
+        pl_loss,memory_bank_unlabeled,mask,_ = unlabeled_train(config,p_model,Ssl_loss,unlabeled_dataloader,model_q,num_neighbors,emb_sums,logger)
         # get_positive_sample()
         # ctr_loss = contrastive_train()
         # total_loss = sup_loss+pl_loss+ctr_loss
@@ -100,4 +101,6 @@ def main():
     unlabeled_dataset = ()
 
     #dataloader
+if __name__ == '__main__':
+    main()
        

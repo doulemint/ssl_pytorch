@@ -1,4 +1,4 @@
-from dataloader.dataloader import create_dataloader, create_mixup_dataloader
+from dataloader.dataloader import *
 from dataloader.dataset import  create_datasets
 from .MemoryBank import MemoryBank
 from models import build_model,get_encoder
@@ -51,7 +51,7 @@ class PMovingAverage:
 
     def update(self, entry):
         entry = torch.mean(entry, 0)
-        self.ma = torch.cat([self.ma[1:], [entry]])
+        self.ma = torch.cat((self.ma[1:], torch.unsqueeze(entry,dim=0)),dim=0)
         # return self.ma.clone()
 
 
@@ -77,8 +77,8 @@ class PMovingAverage:
 def predefined_prototype(config,model,labalbed_dataloader):
     #weak augmentation, use label
     
-    memory_bank_base = MemoryBank(len(labalbed_dataloader), 
-                                config.model.feature_dim,
+    memory_bank_base = MemoryBank(len(labalbed_dataloader)*config.train.batch_size, 
+                                config.model.features_dim,
                                 config.dataset.n_classes, config['criterion_kwargs']['temperature'])
 
     if config.device=="cuda":
@@ -89,12 +89,14 @@ def predefined_prototype(config,model,labalbed_dataloader):
 
     targets = memory_bank_base.targets
     if config.device=="cuda":
-        emb_sums = torch.zeros(config.dataset.n_classes, config.model.feature_dim).cuda(non_blocking=True)
+        emb_sums = torch.zeros(config.dataset.n_classes, config.model.features_dim).cuda(non_blocking=True)
+        targets=targets.cpu().numpy()
     else:
-        emb_sums = torch.zeros(config.dataset.n_classes, config.model.feature_dim)
+        emb_sums = torch.zeros(config.dataset.n_classes, config.model.features_dim)
+        targets=targets.numpy()
     where_helper = get_indices_sparse(targets.numpy())
     for k in range(len(where_helper)):
-        print("where_helper[k]: ",where_helper[k])
+        # print("where_helper[k]: ",where_helper[k])
         if len(where_helper[k][0]) > 0:
             emb_sums[k] = torch.sum(
                             memory_bank_base.features[where_helper[k][0]],
@@ -108,7 +110,7 @@ def predefined_prototype(config,model,labalbed_dataloader):
 #we didn't use it, it was incorporated in label_assignment 
 def similarity_distribution(config):
     unlabeled_dataloader=create_dataloader(config,True,False)
-    memory_bank_unlabeled = MemoryBank(len(unlabeled_dataloader), 
+    memory_bank_unlabeled = MemoryBank(len(unlabeled_dataloader)*config.train.batch_size, 
                                 config.dataset.n_classes,
                                 config.dataset.n_classes, config.criterion_kwargs.temperature)
     
