@@ -136,6 +136,7 @@ config.test.dataloader.pin_memory = False
 
 config.criterion_kwargs=ConfigNode()
 config.criterion_kwargs.temperature=0.9
+config.criterion_kwargs.num_neighbors=200
 
 
 def get_default_config():

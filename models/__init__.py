@@ -17,23 +17,28 @@ def get_encoder(configs):
         model = timm.create_model('resnext50_32x4d', pretrained=pretrain)
         # set_parameter_requires_grad(model, feature_extract)
         n_features = model.fc.in_features
-        model.fc = nn.Linear(n_features, configs.dataset.n_classes)
+        # model.fc = nn.Linear(n_features, configs.dataset.n_classes)
     elif configs.model.name.startswith("resnet50"):
         model = timm.create_model("resnet50", pretrained=pretrain)
         model.avgpool = nn.AdaptiveAvgPool2d(1)
-        model.fc = nn.Linear(model.fc.in_features, configs.dataset.n_classes)
+        n_features = model.fc.in_features
+        # model.fc = nn.Linear(model.fc.in_features, configs.dataset.n_classes)
     elif configs.model.name.startswith("efficientnet-b5"):
         model = timm.create_model('tf_efficientnet_b5_ns',drop_rate=0.7, pretrained=pretrain, drop_path_rate=0.2)
         # set_parameter_requires_grad(model, feature_extract)
-        model.classifier = nn.Linear(model.classifier.in_features, configs.dataset.n_classes)
+        n_features = model.classifier.in_features
+        # model.classifier = nn.Linear(model.classifier.in_features, configs.dataset.n_classes)
 
     else:
         raise ValueError("unknow model name")
-    return model
+    return {"backbone":model,"dim":n_features}
 
-def build_model(config):
+def build_model(config,type="query",head="mlp"):
     backbone= get_encoder(config)
-    if config.model.name=='simclr':
+    if type=='contra':
         from models import ContrastiveModel
-        model = ContrastiveModel(backbone,)
+        model = ContrastiveModel(backbone,head=head,features_dim=config.model.features_dim)
+    else:
+        from models import MultiheadModel
+        model = MultiheadModel(backbone,config.dataset.n_classes,head=head,features_dim=config.model.features_dim)
     return model

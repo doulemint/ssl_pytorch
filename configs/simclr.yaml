@@ -8,6 +8,7 @@ model:
   type: imagenet
   name: resnext
   init_mode: kaiming_fan_out
+  features_dim: 1000
   resnext:
     initial_channels: 64
     n_blocks: [3, 4, 6, 3]

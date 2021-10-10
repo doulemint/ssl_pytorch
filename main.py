@@ -1,6 +1,14 @@
 
 from models import build_model
 from utils.common_utils import create_config
+from optimizer import create_optimizer, create_scheduler
+from dataloader import create_dataloader
+from utils.MemoryBank import *
+from utils.train_utils import *
+from utils.prototype import *
+from utils.logger import create_logger
+from utils import get_env_info
+from losses import create_loss, discriminative_lr_params
 
 
 import argparse
@@ -17,19 +25,73 @@ args = parser.parse_args()
 def main():
 
     #create config
-    p=create_config(args.config_exp)
+    config=create_config(args.config_exp)
+    logger = create_logger(name=__name__,
+                           distributed_rank=0,
+                           output_dir=output_dir,
+                           filename='log.txt')
+    logger.info(config)
+    logger.info(get_env_info(config))
+    #hyperparameter
+    num_neighbors = config.criterion_kwargs.num_neighbors
 
     #build model
-    model=build_model(p)
+    model_q = build_model(config,type="query",head="linear").to(config['device'])  
+    model_k = build_model(config,type="contra",head="mlp").to(config['device'])  
     #print model info
     # print(model.)
 
-    model = model.to(p['device'])  
 
     #setup cudnn
     # setupCuDNN()
 
     #label dataset
+    labalbed_dataloader,unlabeled_dataloader = create_dataloader(config,True,True)
+    val_dataloader = create_dataloader(config,True,False)
+
+    #optimizer,scheduler,loss
+    params=lr_arr=None
+    if config.scheduler.type == 'cyclicLR':
+        params, lr_arr, _ = discriminative_lr_params(model, slice(1e-5))
+    optimizer_q = create_optimizer(config,model_q)
+    scheduler_q = create_scheduler(config,
+                                  optimizer_q,base_lr=lr_arr,
+                                  steps_per_epoch=len(labalbed_dataloader))
+    optimizer_k = create_optimizer(config,model_k)
+    scheduler_k = create_scheduler(config,
+                                  optimizer_k,base_lr=lr_arr,
+                                  steps_per_epoch=len(labalbed_dataloader))
+    
+    #checkpoint
+    supervised_loss, Ssl_loss, contra_loss = create_loss(config)
+
+    #
+
+    memory_bank_unlabeled=None
+    p_model=PMovingAverage(config.dataset.n_classes,config.model.features_dim)
+    #supervised train
+    #todo
+    for epoch, seed in enumerate(range(config.scheduler.epoches)):
+        sup_loss=train(config,model,labalbed_dataloader,optimizer_q,supervised_loss,scheduler_q,logger,epoch)
+        if epoch%5==0:
+        #if epoch=0 we use few shot labeled dataset to get predifined protetype
+            if epoch==0:
+                emb_sums=predefined_prototype(config,model,labalbed_dataloader)
+            #if epoch%5==0 we use mixture labeled dataset to get predifined protetype
+            else:
+                if memory_bank_unlabeled is not None:
+                    mixup_loader = get_mixup(memory_bank_unlabeled,num_neighbors)
+                    emb_sums=predefined_prototype(config,model,mixup_loader)
+        #todo: if p_model doesn't return， will it update the variables synchornizely?
+        pl_loss,memory_bank_unlabeled,mask,p_model = unlabeled_train(config,p_model,Ssl_loss,unlabeled_dataloader,model,emb_sums)
+        # get_positive_sample()
+        # ctr_loss = contrastive_train()
+        # total_loss = sup_loss+pl_loss+ctr_loss
+        # total_loss.backward()
+        
+
+
+
     
     #unlabel dataset
     unlabeled_dataset = ()

@@ -45,30 +45,30 @@ def create_transform(config: yacs.config.CfgNode,
                               is_train: bool) -> Callable:
     mean, std = _get_dataset_stats(config)
     if is_train:
-        transforms = []
-        if config.augmentation.use_albumentations:
-            transforms = [
-            OneOf([
-            CoarseDropout(p=0.5),
-            GaussNoise(),
-            ], p=0.5),
-            SomeOf([
-            Transpose(p=0.5),
-            HorizontalFlip(p=0.5),
-            VerticalFlip(p=0.5),
-            ShiftScaleRotate(p=0.5),
-            HueSaturationValue(hue_shift_limit=0.2, sat_shift_limit=0.2, val_shift_limit=0.2, p=0.5),
-            RandomBrightnessContrast(brightness_limit=(-0.1,0.1), contrast_limit=(-0.1, 0.1), p=0.5),
-            ], n=3, p=0.6),
-            ]
-            # if config.augmentation.use_step_crop:
-            #     transforms.append(
-            #         OneOf([StepcropAlbu(p=0.5),StepcropAlbu(p=0.7,n=8,pos=1),StepcropAlbu(p=0.7,n=8,pos=2),StepcropAlbu(p=0.7,n=8,pos=3)]))
-                    #OneOf([CornerCrop(p=1),StepcropAlbu(p=0.5),StepcropAlbu(p=0.7,n=16),StepcropAlbu(p=0.8,n=4)]))#
-            transforms.extend([Resize(config.dataset.image_size, config.dataset.image_size),
-            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], max_pixel_value=255.0, p=1.0),
-            ToTensorV2(p=1.0),])
-            return Compose(transforms, p=1.0)
+            transforms = []
+            if config.augmentation.use_albumentations:
+                transforms = [
+                OneOf([
+                CoarseDropout(p=0.5),
+                GaussNoise(),
+                ], p=0.5),
+                SomeOf([
+                Transpose(p=0.5),
+                HorizontalFlip(p=0.5),
+                VerticalFlip(p=0.5),
+                ShiftScaleRotate(p=0.5),
+                HueSaturationValue(hue_shift_limit=0.2, sat_shift_limit=0.2, val_shift_limit=0.2, p=0.5),
+                RandomBrightnessContrast(brightness_limit=(-0.1,0.1), contrast_limit=(-0.1, 0.1), p=0.5),
+                ], n=3, p=0.6),
+                ]
+                # if config.augmentation.use_step_crop:
+                #     transforms.append(
+                #         OneOf([StepcropAlbu(p=0.5),StepcropAlbu(p=0.7,n=8,pos=1),StepcropAlbu(p=0.7,n=8,pos=2),StepcropAlbu(p=0.7,n=8,pos=3)]))
+                        #OneOf([CornerCrop(p=1),StepcropAlbu(p=0.5),StepcropAlbu(p=0.7,n=16),StepcropAlbu(p=0.8,n=4)]))#
+                transforms.extend([Resize(config.dataset.image_size, config.dataset.image_size),
+                Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], max_pixel_value=255.0, p=1.0),
+                ToTensorV2(p=1.0),])
+                return Compose(transforms, p=1.0)
     else:
         if config.augmentation.use_albumentations:
             return Compose([
