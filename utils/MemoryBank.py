@@ -1,10 +1,20 @@
 import numpy as np
 import torch
+import faiss
+from prototype import get_indices_sparse
 
 
 """
 refer to: Authors: Wouter Van Gansbeke, Simon Vandenhende
 """
+
+def compute_cluster_assignment(centroids, x):
+    assert centroids is not None, "should train before assigning"
+    d = centroids.shape[1]
+    index = faiss.IndexFlatL2(d)
+    index.add(centroids)
+    distances, labels = index.search(x, 1)
+    return labels.ravel() 
 
 class MemoryBank(object):
     def __init__(self, n, dim, num_classes, temperature):
@@ -18,6 +28,86 @@ class MemoryBank(object):
         self.K = 100
         self.temperature = temperature
         self.C = num_classes
+
+    def weighted_knn(self, predictions):
+        # perform weighted knn
+        retrieval_one_hot = torch.zeros(self.K, self.C).to(self.device)
+        batchSize = predictions.shape[0]
+        correlation = torch.matmul(predictions, self.features.t())
+        yd, yi = correlation.topk(self.K, dim=1, largest=True, sorted=True)
+        candidates = self.targets.view(1,-1).expand(batchSize, -1)
+        retrieval = torch.gather(candidates, 1, yi)
+        retrieval_one_hot.resize_(batchSize * self.K, self.C).zero_()
+        retrieval_one_hot.scatter_(1, retrieval.view(-1, 1), 1)
+        yd_transform = yd.clone().div_(self.temperature).exp_()
+        probs = torch.sum(torch.mul(retrieval_one_hot.view(batchSize, -1 , self.C), 
+                          yd_transform.view(batchSize, -1, 1)), 1)
+        _, class_preds = probs.sort(1, True)
+        class_pred = class_preds[:, 0]
+
+        return class_pred
+    
+    def get_knn(self,centroids, test_embeddings):
+        d = centroids.shape[1]
+        index = faiss.IndexFlatL2(d)
+        if faiss.get_num_gpus()>0:
+            index = faiss.index_cpu_to_all_gpus(index)
+        index.add(centroids)
+        distances,indices = index.search(test_embeddings, self.k)
+        neighbor_targets = np.take(self.targets, indices, axis=0) # Exclude sample itself for eval
+        anchor_targets = np.repeat(self.targets.reshape(-1,1), self.k, axis=1)
+        accuracy = np.mean(neighbor_targets == anchor_targets)
+        return  accuracy
+
+
+    def knn(self, predictions):
+        # perform knn
+        correlation = torch.matmul(predictions, self.features.t())
+        sample_pred = torch.argmax(correlation, dim=1)
+        class_pred = torch.index_select(self.targets, 0, sample_pred)
+        return class_pred
+
+    def mine_nearest_neighbors(self, topk, calculate_accuracy=True):
+        # mine the topk nearest neighbors for every sample
+        import faiss
+        features = self.features.cpu().numpy()
+        n, dim = features.shape[0], features.shape[1]
+        index = faiss.IndexFlatIP(dim) # inner product --> cosin simi
+        index = faiss.index_cpu_to_all_gpus(index)
+        index.add(features)
+        distances, indices = index.search(features, topk+1) # Sample itself is included
+        
+        # evaluate 
+        if calculate_accuracy:
+            targets = self.targets.cpu().numpy()
+            neighbor_targets = np.take(targets, indices[:,1:], axis=0) # Exclude sample itself for eval
+            anchor_targets = np.repeat(targets.reshape(-1,1), topk, axis=1)
+            accuracy = np.mean(neighbor_targets == anchor_targets)
+            return indices, accuracy
+        
+        else:
+            return indices
+    
+    def cal_mean_rep(self,config):
+        targets = self.targets
+        if config.device=="cuda":
+            emb_sums = torch.zeros(config.dataset.n_classes, config.model.features_dim).cuda(non_blocking=True)
+            targets=targets.cpu().numpy()
+        else:
+            emb_sums = torch.zeros(config.dataset.n_classes, config.model.features_dim)
+            targets=targets.numpy()
+        where_helper = get_indices_sparse(targets)
+        for k in range(len(where_helper)):
+            # print("where_helper[k]: ",where_helper[k])
+            if len(where_helper[k][0]) > 0:
+                emb_sums[k] = torch.sum(
+                                self.features[where_helper[k][0]],
+                                dim=0,
+                            )/len(where_helper[k][0])
+        self.centroids = emb_sums.copy()
+
+        return emb_sums
+
 
     def update(self, features, targets,files=None):
         b = features.size(0)

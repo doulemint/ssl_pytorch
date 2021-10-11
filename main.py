@@ -23,6 +23,7 @@ parser.add_argument('--config_exp',
                     help='Config file for the experiment')
 args = parser.parse_args()
 
+
 def main():
 
     #create config
@@ -41,6 +42,7 @@ def main():
     #build model
     model_q = build_model(config,type="query",head="linear").to(config['device'])  
     model_k = build_model(config,type="contra",head="mlp").to(config['device'])  
+    best_acc=0
     #print model info
     # print(model.)
 
@@ -68,6 +70,9 @@ def main():
     #checkpoint
     supervised_loss, Ssl_loss, contra_loss = create_loss(config)
 
+    ckp_dir_q = config.train.output_dir+"/best_checkpoints_q.pth"
+    ckp_dir_k = config.train.output_dir+"/best_checkpoints_k.pth"
+
     #
 
     memory_bank_unlabeled=None
@@ -87,20 +92,23 @@ def main():
                     mixup_loader = get_mixup(memory_bank_unlabeled,num_neighbors)
                     emb_sums=predefined_prototype(config,model_q,mixup_loader)
 
-        pl_loss,memory_bank_unlabeled,mask,_ = unlabeled_train(config,p_model,Ssl_loss,unlabeled_dataloader,model_q,num_neighbors,emb_sums,logger)
-        # get_positive_sample()
-        # ctr_loss = contrastive_train()
+        pl_loss,memory_bank_unlabeled,mask = unlabeled_train(config,p_model,Ssl_loss,unlabeled_dataloader,model_q,num_neighbors,emb_sums,logger)
+        # get_positive_sample() ctr_loss = contrastive_train()
+        constrast_loader = get_positive_sample(config,memory_bank_unlabeled,num_neighbors,mask)
+        contrastive_train(config,model,constrast_loader,optimizer_k,contra_loss,scheduler_k,epoch,emb_sums,logger)
+        acc=val(config,model_k,val_dataloader,supervised_loss,epoch,emb_sums,logger)
         # total_loss = sup_loss+pl_loss+ctr_loss
         # total_loss.backward()
+        if acc>best_acc:
+            # print('Checkpoint ...')
+            logger.info(f"improve from {best_acc} to {acc} save checkpoint!")
+            torch.save({'optimizer': optimizer_q.state_dict(), 'model': model_q.state_dict(), 
+                        'epoch': epoch + 1}, ckp_dir_q)
+            torch.save({'optimizer': optimizer_k.state_dict(), 'model': model_k.state_dict(), 
+                        'epoch': epoch + 1}, ckp_dir_k)
         
 
 
-
-    
-    #unlabel dataset
-    unlabeled_dataset = ()
-
-    #dataloader
 if __name__ == '__main__':
     main()
        

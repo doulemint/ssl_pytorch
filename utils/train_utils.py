@@ -1,5 +1,6 @@
 import torch
 from dataloader.dataloader import *
+import models
 
 from .prototype import *
 from utils.metrics import compute_accuracy
@@ -14,6 +15,8 @@ def train(config,model,train_loader,optimizer,criterion,scheduler,logger,epoch):
     # print(f"running Train {epoch}")
     
     running_accuracy=0.0
+    running_loss=0.0
+
     for step, batch in enumerate(train_loader):
         images = batch[0].to(device)
         targets = batch[1].to(device)
@@ -24,6 +27,7 @@ def train(config,model,train_loader,optimizer,criterion,scheduler,logger,epoch):
         _,logits_y=model(images)
         loss = criterion(logits_y, targets)
         loss.backward()
+        running_loss += loss.detach()
 
         optimizer.step()
 
@@ -32,9 +36,9 @@ def train(config,model,train_loader,optimizer,criterion,scheduler,logger,epoch):
 
         running_accuracy +=(pred==targets).sum().item()
         if step%200==0:
-            logger.info(f"{step}/{len(train_loader)} Accy-top1: {running_accuracy/((step+1)*config.train.batch_size)}")
+            logger.info(f"{step}/{len(train_loader)} Accy-top1: {running_accuracy/((step+1)*config.train.batch_size)} Loss: {running_accuracy}")
 
-    logger.info(f"{step}/{len(train_loader)} Accy-top1: {running_accuracy/(len(train_loader)*config.train.batch_size)}")
+    logger.info(f"{step}/{len(train_loader)} Accy-top1: {running_accuracy/(len(train_loader)*config.train.batch_size)} Loss: {running_accuracy}")
 
     scheduler.step()
     return loss
@@ -74,17 +78,17 @@ def unlabeled_train(config,p_model,criterion,unlabeled_dataloader,model,num_neig
         print("losses: ",losses)
         p_model.update(p_s)
     
-    return losses,memory_bank_unlabeled,mask,p_model
+    return losses,memory_bank_unlabeled,mask
 
 #in contrastive train model_q only is maintained by positive selection
-def contrastive_train(config,model,train_loader,optimizer,criterion,scheduler,epoch,negative_queue,emb_sum):
+def contrastive_train(config,model,train_loader,optimizer,criterion,scheduler,epoch,emb_sum,logger):
     device=config.device
     model.to(device)
     model.train()
-    #todo:logger
-    print(f"running Train {epoch}")
+
+    logger.info(f"running constrastive Train {epoch}")
     
-    running_accuracy=0.0
+    running_loss=0.0
     for step, batch in enumerate(train_loader):
         images = batch[0].to(device)
         targets = batch[1].to(device)
@@ -92,47 +96,63 @@ def contrastive_train(config,model,train_loader,optimizer,criterion,scheduler,ep
         #clean gradients parameter
         optimizer.zero_grad()
 
-        feature_vector,logits_y=model(images)
+        feature_vector=model(images)
         #
-        sim = (feature_vector,emb_sum)
-        loss = criterion(logits_y, targets)
-        # loss.backward()
+        # sim = (feature_vector,emb_sum)
+        loss = criterion(feature_vector, targets)
+        loss.backward()
 
         optimizer.step()
+        running_loss += loss.detach()
 
-        pred = torch.max(logits_y,dim=1)[1] 
-        #todo: handle one hot label
+        # pred = torch.max(logits_y,dim=1)[1] 
+        if step%200==0:
+            logger.info(f"{step}/{len(train_loader)} Loss: {running_loss}/{((step+1)*config.train.batch_size)}")
 
-        running_accuracy +=(pred==targets).sum().item()
-    
-    
-    
-    #train and calculate unlabeled_dataset
-
-    
+    logger.info(f"{step}/{len(train_loader)} Loss: {running_loss}/{(len(train_loader)*config.train.batch_size)}")
     scheduler.step()
+
     return loss
 
 
 #we didn't consider pr_loss result.. simply mined samples
 
-def val(config,model,train_loader,criterion,epoch):
+@torch.no_grad()
+def val(config,model,val_loader,criterion,epoch,emb_sums,logger):
     device=config.device
     model.to(device)
     model.val()
-    #todo:logger
-    print(f"running Train {epoch}")
+
+    logger.info(f"running val {epoch}")
+
+    memory_bank_val_labeled = MemoryBank(len(val_loader)*config.train.batch_size, 
+                                config.model.features_dim,
+                                config.dataset.n_classes, config.criterion_kwargs.temperature)
     
     running_accuracy=0.0
-    for step, batch in enumerate(train_loader):
-        images = batch[0].to(device)
-        targets = batch[1].to(device)
+    for step, batch in enumerate(val_loader):
+            images = batch[0].to(device)
+            targets = batch[1].to(device)
+            
 
-        feature_vector,logits_y=model(images)
-        loss = criterion(logits_y, targets)
+            feature_vector,logits_y=model(images)
+            loss = criterion(logits_y, targets)
 
-        pred = torch.max(logits_y,dim=1)[1] 
-        #todo: handle one hot label
+            memory_bank_val_labeled.update(feature_vector,targets)
 
-        running_accuracy +=(pred==targets).sum().item()
+            pred = torch.max(logits_y,dim=1)[1] 
+            #todo: handle one hot label
+
+            running_accuracy +=(pred==targets).sum().item()
+            running_accuracy +=(pred==targets).sum().item()
+            if step%200==0:
+                logger.info(f"{step}/{len(val_loader)} Accy-top1: {running_accuracy/((step+1)*config.train.batch_size)} Loss: {running_accuracy}")
+            
+
+    logger.info(f"{step}/{len(val_loader)} Accy-top1: {running_accuracy/(len(val_loader)*config.train.batch_size)} Loss: {running_accuracy}")
+    acc = memory_bank_val_labeled.get_knn(emb_sums,memory_bank_val_labeled.features)
+    logger.info(f"knn accuracy {acc} over {memory_bank_val_labeled.K}")
+
+    return acc
+
 
