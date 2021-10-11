@@ -41,13 +41,13 @@ def create_labaled_dataloader(config: yacs.config.CfgNode,isweak:bool)->DataLoad
     return train_loader
 
 def create_constrastive_dataloader(config: yacs.config.CfgNode,isweak:bool,df:pd.DataFrame)->DataLoader:
-    train_datset = create_datasets(config,isweak,False,df)
+    train_datset = create_datasets(config,isweak,True,df)
     train_loader = torch.utils.data.DataLoader(
         train_datset,
         batch_size=config.train.batch_size,
         pin_memory=config.train.dataloader.pin_memory,
         drop_last=False,
-        shuffle=False,        
+        shuffle=True,        
         num_workers=config.train.dataloader.num_workers,
     )
     return train_loader

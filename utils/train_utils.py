@@ -52,9 +52,10 @@ def unlabeled_train(config,p_model,criterion,unlabeled_dataloader,model,num_neig
                                 config.dataset.n_classes,
                                 config.dataset.n_classes, config.criterion_kwargs.temperature)
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+    running_loss = 0.0
 
 
-    for batch,filenames in unlabeled_dataloader:
+    for step,(batch,filenames) in enumerate(unlabeled_dataloader):
         batch = batch.to(device)
         feature_vector,logits_y=model(batch)
         p_s=torch.zeros(feature_vector.size(0), config.dataset.n_classes)
@@ -68,15 +69,21 @@ def unlabeled_train(config,p_model,criterion,unlabeled_dataloader,model,num_neig
             p_s[0] = cos(feature_vector,emb_sums)
         memory_bank_unlabeled.update(p_s,torch.tensor([0]*feature_vector.size(0)),filenames)
         #distribution alignment
-        targets_u = logits_y.detach().cpu()* p_model()
+        targets_u = F.softmax(logits_y.detach(),dim=1)
+        targets_u = targets_u * p_model().to(device)
         #sharpening
         targets_u = targets_u**(1/0.5)
         targets_u = targets_u / targets_u.sum(dim=1, keepdim=True)
-        pseudo_label = F.normalize(targets_u.detach(), dim = 1)
+        targets_u = F.normalize(targets_u, dim = 1)
         #loss
-        losses,mask = criterion(logits_y, pseudo_label)
-        print("losses: ",losses)
+        losses,mask = criterion(logits_y, targets_u)
+        running_loss += losses[mask].sum().item()
+        if step%200==0:
+            logger.info(f"{step}/{len(unlabeled_dataloader)} Loss: {running_loss}/{((step+1)*config.train.batch_size)}")
+
         p_model.update(p_s)
+    logger.info(f"{step}/{len(unlabeled_dataloader)} Loss: {running_loss}/{(len(unlabeled_dataloader)*config.train.batch_size)}")
+
     
     return losses,memory_bank_unlabeled,mask
 
@@ -97,6 +104,7 @@ def contrastive_train(config,model,train_loader,optimizer,criterion,scheduler,ep
         optimizer.zero_grad()
 
         feature_vector=model(images)
+        feature_vector = F.normalize(feature_vector, dim = 1)
         #
         # sim = (feature_vector,emb_sum)
         loss = criterion(feature_vector, targets)
@@ -121,7 +129,7 @@ def contrastive_train(config,model,train_loader,optimizer,criterion,scheduler,ep
 def val(config,model,val_loader,criterion,epoch,emb_sums,logger):
     device=config.device
     model.to(device)
-    model.val()
+    model.eval()
 
     logger.info(f"running val {epoch}")
 

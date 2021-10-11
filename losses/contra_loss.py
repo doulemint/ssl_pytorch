@@ -55,7 +55,8 @@ class CircleLoss(nn.Module):
         self.gamma = gamma
         self.soft_plus = nn.Softplus()
 
-    def forward(self, sp: Tensor, sn: Tensor) -> Tensor:
+    def forward(self, normed_feature: Tensor, label: Tensor) -> Tensor:
+        sp, sn = convert_label_to_similarity(normed_feature,label)
         ap = torch.clamp_min(- sp.detach() + 1 + self.m, min=0.)
         an = torch.clamp_min(sn.detach() + self.m, min=0.)
         # print("ap:",ap," an:",an)

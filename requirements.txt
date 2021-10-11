@@ -1,3 +1,4 @@
 yacs
 timm
 albumentations
+faiss-gpu

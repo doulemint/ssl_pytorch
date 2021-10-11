@@ -14,7 +14,7 @@ from .contra_loss import CircleLoss,convert_label_to_similarity
 def create_loss(config):
 
     supervised_loss = nn.CrossEntropyLoss(reduction='mean')
-    ssl_loss = SslLoss(0.7)
+    ssl_loss = SslLoss(0.5)
     constrastive_loss = CircleLoss(m=0.25, gamma=256)
     
 

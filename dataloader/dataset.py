@@ -181,8 +181,8 @@ def create_datasets(config: yacs.config.CfgNode,weakAugment:bool,labeled:bool,df
     else:
         #return unlabeled dataset
         if config.augmentation.use_albumentations:
-            val_df=get_files(dataset_dir+"/val/","test",label_map_dir)
-            val_dataset=MyDataset(val_df,transforms=transform,output_label=False)
+            val_df=get_files(dataset_dir+"/val/","train",label_map_dir)
+            val_dataset=MyDataset(val_df,transforms=transform)
         else:
             val_transform = create_transform(config, is_train=False)
             val_dataset = torchvision.datasets.ImageFolder(dataset_dir+"/val",

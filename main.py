@@ -95,7 +95,7 @@ def main():
         pl_loss,memory_bank_unlabeled,mask = unlabeled_train(config,p_model,Ssl_loss,unlabeled_dataloader,model_q,num_neighbors,emb_sums,logger)
         # get_positive_sample() ctr_loss = contrastive_train()
         constrast_loader = get_positive_sample(config,memory_bank_unlabeled,num_neighbors,mask)
-        contrastive_train(config,model,constrast_loader,optimizer_k,contra_loss,scheduler_k,epoch,emb_sums,logger)
+        contrastive_train(config,model_k,constrast_loader,optimizer_k,contra_loss,scheduler_k,epoch,emb_sums,logger)
         acc=val(config,model_k,val_dataloader,supervised_loss,epoch,emb_sums,logger)
         # total_loss = sup_loss+pl_loss+ctr_loss
         # total_loss.backward()
@@ -106,6 +106,7 @@ def main():
                         'epoch': epoch + 1}, ckp_dir_q)
             torch.save({'optimizer': optimizer_k.state_dict(), 'model': model_k.state_dict(), 
                         'epoch': epoch + 1}, ckp_dir_k)
+            best_acc = acc
         
 
 

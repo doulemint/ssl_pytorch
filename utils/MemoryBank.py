@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import faiss
-from prototype import get_indices_sparse
+# from prototype import get_indices_sparse #it has deadloack problem
 
 
 """
@@ -47,17 +47,17 @@ class MemoryBank(object):
 
         return class_pred
     
-    def get_knn(self,centroids, test_embeddings):
-        d = centroids.shape[1]
-        index = faiss.IndexFlatL2(d)
-        if faiss.get_num_gpus()>0:
-            index = faiss.index_cpu_to_all_gpus(index)
-        index.add(centroids)
-        distances,indices = index.search(test_embeddings, self.k)
-        neighbor_targets = np.take(self.targets, indices, axis=0) # Exclude sample itself for eval
-        anchor_targets = np.repeat(self.targets.reshape(-1,1), self.k, axis=1)
-        accuracy = np.mean(neighbor_targets == anchor_targets)
-        return  accuracy
+    # def get_knn(self,centroids, test_embeddings):
+    #     d = centroids.shape[1]
+    #     index = faiss.IndexFlatL2(d)
+    #     if faiss.get_num_gpus()>0:
+    #         index = faiss.index_cpu_to_all_gpus(index)
+    #     index.add(centroids)
+    #     distances,indices = index.search(test_embeddings, self.k)
+    #     neighbor_targets = np.take(self.targets, indices, axis=0) # Exclude sample itself for eval
+    #     anchor_targets = np.repeat(self.targets.reshape(-1,1), self.k, axis=1)
+    #     accuracy = np.mean(neighbor_targets == anchor_targets)
+    #     return  accuracy
 
 
     def knn(self, predictions):
@@ -87,6 +87,17 @@ class MemoryBank(object):
         
         else:
             return indices
+    def get_knn(self,centroids, test_embeddings):
+        d = centroids.size(1)
+        index = faiss.IndexFlatL2(d)
+        # if faiss.get_num_gpus()>0:
+        index = faiss.index_cpu_to_all_gpus(index)
+        index.add(centroids.detach().cpu().numpy())
+        distances,indices = index.search(test_embeddings.detach().cpu().numpy(), self.K)
+        neighbor_targets = np.take(self.targets.detach().cpu().numpy(), indices, axis=0) # Exclude sample itself for eval
+        anchor_targets = np.repeat(self.targets.detach().cpu().numpy().reshape(-1,1), self.K, axis=1)
+        accuracy = np.mean(neighbor_targets == anchor_targets)
+        return  accuracy
     
     def cal_mean_rep(self,config):
         targets = self.targets
@@ -96,6 +107,7 @@ class MemoryBank(object):
         else:
             emb_sums = torch.zeros(config.dataset.n_classes, config.model.features_dim)
             targets=targets.numpy()
+        from utils.prototype import get_indices_sparse
         where_helper = get_indices_sparse(targets)
         for k in range(len(where_helper)):
             # print("where_helper[k]: ",where_helper[k])
