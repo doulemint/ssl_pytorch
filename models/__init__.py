@@ -35,7 +35,7 @@ def get_encoder(configs):
         model = timm.create_model('tf_efficientnet_b5_ns',drop_rate=0.7, pretrained=pretrain, drop_path_rate=0.2)
         # set_parameter_requires_grad(model, feature_extract)
         n_features = model.classifier.in_features
-        model.fc = Identity()
+        model.classifier = Identity()
         # model.classifier = nn.Linear(model.classifier.in_features, configs.dataset.n_classes)
 
     else:

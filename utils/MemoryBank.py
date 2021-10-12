@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import faiss
+from utils.metrics import accuracy
 # from prototype import get_indices_sparse #it has deadloack problem
 
 
@@ -66,6 +67,20 @@ class MemoryBank(object):
         sample_pred = torch.argmax(correlation, dim=1)
         class_pred = torch.index_select(self.targets, 0, sample_pred)
         return class_pred
+    
+    def self_clustering_kmeans(self):
+
+        features = self.features.cpu().numpy()
+        n, dim = features.shape[0], features.shape[1]
+        kmeans = faiss.Kmeans()
+        kmeans.train(features)
+        dists, ids = kmeans.index.search(features,1)
+        targets = self.targets.cpu().numpy()
+        neighbor_targets = np.take(self.targets.detach().cpu().numpy(), ids[:,1:], axis=0)
+        accuracy = np.mean(neighbor_targets == targets)
+
+        return accuracy
+
 
     def mine_nearest_neighbors(self, topk, calculate_accuracy=True):
         # mine the topk nearest neighbors for every sample
@@ -91,7 +106,7 @@ class MemoryBank(object):
         d = centroids.size(1)
         index = faiss.IndexFlatL2(d)
         # if faiss.get_num_gpus()>0:
-        index = faiss.index_cpu_to_all_gpus(index)
+        # index = faiss.index_cpu_to_all_gpus(index)
         index.add(centroids.detach().cpu().numpy())
         distances,indices = index.search(test_embeddings.detach().cpu().numpy(), self.K)
         neighbor_targets = np.take(self.targets.detach().cpu().numpy(), indices, axis=0) # Exclude sample itself for eval
