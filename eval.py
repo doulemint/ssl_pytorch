@@ -43,11 +43,20 @@ def main():
     # model.classifier = nn.Linear(model.classifier.in_features, config.dataset.n_classes)
     model_q = build_model(config,type="query",head="linear").to(config['device']) 
 
-    checkpoint = torch.load(config.train.checkpoint, map_location='cpu')
+    checkpoint = torch.load(config.test.checkpoint, map_location='cpu')
     if isinstance(model,(nn.DataParallel, nn.parallel.DistributedDataParallel)):
             model.module.load_state_dict(checkpoint['model'])
     else:
-            model.load_state_dict(checkpoint['model'])
+        #     model.load_state_dict(checkpoint['model'])
+        prefix = "backbone."
+        checkpoint = {f"{prefix}{key}": val for (key, val) in checkpoint.items()}
+
+    all_layers = model.state_dict()
+    for layername in checkpoint.keys():
+      if layername in all_layers:
+        all_layers[layername]=checkpoint[layername]
+      else:
+        print("skip..",layername)
 
     labalbed_dataloader = create_dataloader(config,True,True,True)
     val_dataloader = create_dataloader(config,True,False,True)
