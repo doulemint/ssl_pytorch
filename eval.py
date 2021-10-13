@@ -65,7 +65,7 @@ def main():
                                 config.model.features_dim,
                                 config.dataset.n_classes, config.criterion_kwargs.temperature)
 
-    fill_memory_bank(labalbed_dataloader, model, memory_bank_base,config.device)
+    fill_memory_bank(labalbed_dataloader, model, memory_bank_val_labeled,config.device)
 
     memory_bank_val_labeled.cal_mean_rep(config)
     
@@ -77,3 +77,6 @@ def main():
 
     _,acc=memory_bank_val_labeled.mine_nearest_neighbors(3)
     print("mine_nearest_neighbors acc: ",acc)
+
+if __name__ == '__main__':
+  main()

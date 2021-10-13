@@ -70,9 +70,12 @@ class MemoryBank(object):
     
     def self_clustering_kmeans(self):
 
-        features = self.features.cpu().numpy()
+        features = np.float32(self.features.cpu().numpy())
         n, dim = features.shape[0], features.shape[1]
-        kmeans = faiss.Kmeans()
+        niter=60
+        verbose=True
+        ncentroids=10
+        kmeans = faiss.Kmeans(dim, ncentroids, niter=niter, verbose=verbose)
         kmeans.train(features)
         dists, ids = kmeans.index.search(features,1)
         targets = self.targets.cpu().numpy()
@@ -85,7 +88,7 @@ class MemoryBank(object):
     def mine_nearest_neighbors(self, topk, calculate_accuracy=True):
         # mine the topk nearest neighbors for every sample
         import faiss
-        features = self.features.cpu().numpy()
+        features = np.float32(self.features.cpu().numpy())
         n, dim = features.shape[0], features.shape[1]
         index = faiss.IndexFlatIP(dim) # inner product --> cosin simi
         index = faiss.index_cpu_to_all_gpus(index)
@@ -131,7 +134,7 @@ class MemoryBank(object):
                                 self.features[where_helper[k][0]],
                                 dim=0,
                             )/len(where_helper[k][0])
-        self.centroids = emb_sums.copy()
+        self.centroids = emb_sums.detach()
 
         return emb_sums
 

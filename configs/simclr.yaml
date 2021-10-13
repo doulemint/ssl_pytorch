@@ -23,6 +23,7 @@ train:
   base_lr: 0.1
   momentum: 0.9
   nesterov: True
+  checkpoint: /content/ssl_pytorch/resnet50-19c8e357.pth
   weight_decay: 1e-4
   output_dir: experiments/imagenet/resnext50_32x4d/exp00
   log_period: 10
